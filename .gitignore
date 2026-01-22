@@ -1,2 +1,16 @@
-mis_outputs_exact_topk/
+# Datasets
 qingge_datasets/
+
+# Output results
+mis_outputs_exact_topk/
+mis_outputs_adaptive/
+mis_outputs*/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS / editor junk
+.DS_Store
+.vscode/
+

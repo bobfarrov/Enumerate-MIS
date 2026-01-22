@@ -353,6 +353,23 @@ def collect_top_k_mis(
 # 5. Main Runner
 # ------------------------------------------------------------------
 
+def adaptive_time_limit(base_time: float, num_verts: int) -> float:
+    """
+    Returns an effective per-instance time budget based on num_verts.
+    - If base_time <= 0: no time limit (0 means unlimited in your code)
+    - Otherwise: cap by tiers.
+    """
+    if base_time <= 0:
+        return 0.0  # unlimited
+
+    if num_verts <= 10_000:
+        return min(base_time, 60.0)
+    elif num_verts <= 30_000:
+        return min(base_time, 30.0)
+    else:
+        # up to 60k (or whatever you allow)
+        return min(base_time, 10.0)
+
 def process_instance(
     H: List[int],
     G: List[int],
@@ -364,10 +381,29 @@ def process_instance(
     exact_topk: bool,
     prefer_large_first: bool,
     seed: Optional[int],
+    max_verts: int,
 ) -> Dict:
     verts = generate_vertices(H, G, signed, minimal_only)
+    effective_time = adaptive_time_limit(time_limit_sec, len(verts))
+
+    if len(verts) > max_verts:
+        return {
+            "skipped": True,
+            "reason": f"too many vertices: {len(verts)} > {max_verts}",
+            "top_k": top_k,
+            "num_vertices": len(verts),
+            "num_edges": 0,
+            "top_mis": [],
+            "top_sizes": [],
+            "enumerated": 0,
+            "is_exact_topk_among_all": False,
+            "signed": signed,
+            "minimal_only": minimal_only,
+        }
+
     if not verts:
         return {
+            "skipped": False,
             "top_k": top_k,
             "num_vertices": 0,
             "num_edges": 0,
@@ -386,7 +422,7 @@ def process_instance(
         all_vids,
         top_k=top_k,
         max_enumerated=max_enumerated,
-        time_limit_sec=time_limit_sec,
+        time_limit_sec=effective_time,
         exact_topk=exact_topk,
         prefer_large_first=prefer_large_first,
         seed=seed,
@@ -398,6 +434,7 @@ def process_instance(
         "num_edges": m2 // 2,
         "signed": signed,
         "minimal_only": minimal_only,
+        "effective_time_limit_sec": effective_time,
     })
     return res
 
@@ -414,6 +451,7 @@ def run_dataset(
     exact_topk: bool,
     prefer_large_first: bool,
     seed: Optional[int],
+    max_verts: int,
 ):
     files = sorted(Path(root).rglob("*.txt"))
     if only_mode:
@@ -425,9 +463,6 @@ def run_dataset(
         files = files[:max_files]
 
     print(f"Found {len(files)} files to process.")
-
-    files = [f for f in files if "_m5_" not in f.name]
-    files = [f for f in files if "_n12000_" not in f.name]
 
     for fp in files:
         try:
@@ -468,6 +503,7 @@ def run_dataset(
                 continue
 
             print(f"  Instance {i+1} (|A|={len(H)} |B|={len(G)})...")
+            print(f"    [INFO] base_time={time_limit_sec}s (adaptive)")
 
             signed_flag = (f_mode == "signed")
             res = process_instance(
@@ -480,13 +516,22 @@ def run_dataset(
                 exact_topk=exact_topk,
                 prefer_large_first=prefer_large_first,
                 seed=seed,
+                max_verts=max_verts,
             )
             res["instance_id"] = i + 1
+
+            if "effective_time_limit_sec" in res:
+                print(
+                    f"    [INFO] effective_time={res['effective_time_limit_sec']}s, "
+                    f"verts={res.get('num_vertices')}"
+                )
 
             with open(out_path, "w") as f_out:
                 json.dump(res, f_out, indent=2)
 
-            if res["top_mis"]:
+            if res.get("skipped"):
+                print(f"    SKIPPED: {res['reason']}")
+            elif res["top_mis"]:
                 print(f"    Enumerated={res['enumerated']}, Top MIS size={len(res['top_mis'][0])}, K={top_k}")
             else:
                 print(f"    Enumerated={res['enumerated']}, No MIS produced (maybe time/limit too small).")
@@ -503,6 +548,10 @@ if __name__ == "__main__":
     parser.add_argument("--max_files", type=int, default=0)
 
     parser.add_argument("--minimal_only", action="store_true")
+
+    parser.add_argument("--max_verts", type=int, default=60000,
+                    help="Skip an instance if generated vertices exceed this threshold")
+
 
     # Top-K options
     parser.add_argument("--top_k", type=int, default=30, help="How many maximal IS to keep")
@@ -535,4 +584,5 @@ if __name__ == "__main__":
         exact_topk=args.exact_topk,
         prefer_large_first=args.prefer_large_first,
         seed=args.seed,
+        max_verts=args.max_verts,
     )
