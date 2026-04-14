@@ -38,15 +38,21 @@ def canonical_signed_adj(a: int, b: int) -> Tuple[int, int]:
     x1, x2 = (a, b), (-b, -a)
     return x1 if x1 <= x2 else x2
 
+def infer_mode_from_path(fp: Path) -> str:
+    s = str(fp)
+    name = fp.name.lower()
+    if "unsigned" in name or "/unsigned/" in s or "\\unsigned\\" in s:
+        return "unsigned"
+    if "signed" in name or "/signed/" in s or "\\signed\\" in s:
+        return "signed"
+    return "unknown"
+
 def generate_vertices(A: List[int], B: List[int], signed: bool, minimal_only: bool) -> List[Vertex]:
     """
     NOTE: This keeps your original modeling:
       - pos[] built from B
       - colors are 'c' = adjacency index in A (c=0..|A|-2)
       - vertices are intervals (L,R) over indices in B
-
-    If later you want the exact model from the Qingdao note (colors = adjacency in B),
-    we can refactor this function.
     """
     pos = defaultdict(list)
     for i, x in enumerate(B):
@@ -243,7 +249,6 @@ def enumerate_maximal_independent_sets_bitset(
         if prefer_large_first and 1 < len(cand_list) <= 2000:
             cand_list.sort(key=lambda v: popcount(P & comp_mask[v]), reverse=True)
 
-
         for v in cand_list:
             Nv = comp_mask[v]
             yield from bronk(R | (1 << v), P & Nv, X & Nv, depth + 1)
@@ -255,7 +260,7 @@ def enumerate_maximal_independent_sets_bitset(
     yield from bronk(0, all_mask, 0, 0)
 
 # ------------------------------------------------------------------
-# 4. Top-K collector for maximal IS
+# 4. Collector for maximal IS
 # ------------------------------------------------------------------
 
 def collect_top_k_mis(
@@ -267,35 +272,18 @@ def collect_top_k_mis(
     time_limit_sec: float = 0.0,
     exact_topk: bool = False,
     prefer_large_first: bool = True,
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
+    store_all_mis: bool = False,
 ) -> Dict:
     """
-    Returns Top-K maximal independent sets.
+    If store_all_mis=False:
+        keep only Top-K as before.
 
-    exact_topk=False (recommended for practicality):
-      - Enumerates MIS in a heuristic order (large-first), collects K, then stops.
-      - FAST, but NOT guaranteed to be the true top-K.
-
-    exact_topk=True:
-      - Enumerates ALL MIS (or until max_enumerated/time_limit), and keeps the true top-K among enumerated.
-      - To be mathematically "exact top-K", you must enumerate ALL MIS (no time/limit cutoffs).
-
-    max_enumerated:
-      - 0 => no cap
-      - >0 => stop after generating this many MIS
-
-    time_limit_sec:
-      - 0 => no limit
-      - >0 => stop after time limit
+    If store_all_mis=True:
+        enumerate all MIS, store all of them, sort by size descending.
     """
-    if top_k <= 0:
-        return {"top_mis": [], "enumerated": 0, "is_exact": False}
-
     if seed is not None:
         random.seed(seed)
-
-    heap: List[Tuple[int, Tuple[int, ...]]] = []  # (size, mis_sorted_tuple)
-    seen: Set[Tuple[int, ...]] = set()
 
     enumerated = 0
     start = time.time()
@@ -305,11 +293,48 @@ def collect_top_k_mis(
             return True
         return (time.time() - start) <= time_limit_sec
 
+    if store_all_mis:
+        all_mis: List[Tuple[int, ...]] = []
+        seen: Set[Tuple[int, ...]] = set()
+
+        for mis in enumerate_maximal_independent_sets_bitset(
+            adj, all_vids, time_limit_sec=time_limit_sec, prefer_large_first=prefer_large_first
+        ):
+            enumerated += 1
+            t = tuple(sorted(mis))
+            if t not in seen:
+                seen.add(t)
+                all_mis.append(t)
+            
+            if enumerated % 100 == 0:
+                print(f"      [PROGRESS] enumerated={enumerated}, stored={len(all_mis)}")
+
+            if max_enumerated > 0 and enumerated >= max_enumerated:
+                break
+            if not time_ok():
+                break
+
+        all_mis.sort(key=lambda x: (-len(x), x))
+
+        return {
+            "top_mis": [list(x) for x in all_mis],
+            "top_sizes": [len(x) for x in all_mis],
+            "enumerated": enumerated,
+            "stored_all_mis": True,
+            "is_complete_enumeration": (time_limit_sec <= 0.0 and max_enumerated == 0),
+            "note": "All maximal independent sets stored and sorted by size descending."
+        }
+
+    if top_k <= 0:
+        return {"top_mis": [], "enumerated": 0, "is_exact": False}
+
+    heap: List[Tuple[int, Tuple[int, ...]]] = []
+    seen: Set[Tuple[int, ...]] = set()
+
     for mis in enumerate_maximal_independent_sets_bitset(
         adj, all_vids, time_limit_sec=time_limit_sec, prefer_large_first=prefer_large_first
     ):
         enumerated += 1
-
         t = tuple(sorted(mis))
         if t not in seen:
             seen.add(t)
@@ -317,22 +342,16 @@ def collect_top_k_mis(
             if len(heap) < top_k:
                 heapq.heappush(heap, (s, t))
             else:
-                # keep K largest by size
                 if s > heap[0][0]:
                     heapq.heapreplace(heap, (s, t))
 
-        # Early stop behavior
         if not exact_topk and len(heap) >= top_k:
-            # We already have K; since order is large-first, we stop early (heuristic top-K)
             break
-
         if max_enumerated > 0 and enumerated >= max_enumerated:
             break
-
         if not time_ok():
             break
 
-    # Sort results descending by size
     heap.sort(key=lambda x: x[0], reverse=True)
     top_mis = [list(t) for _, t in heap]
 
@@ -341,11 +360,11 @@ def collect_top_k_mis(
         "top_mis": top_mis,
         "top_sizes": [len(x) for x in top_mis],
         "enumerated": enumerated,
+        "stored_all_mis": False,
         "is_exact_topk_among_all": bool(is_exact),
         "note": (
-            "If exact_topk is False, Top-K is heuristic (fast). "
-            "If exact_topk is True, Top-K is exact among enumerated MIS; "
-            "it is mathematically exact top-K only if you enumerate ALL MIS (no caps/time limit)."
+            "If store_all_mis is False, only Top-K are stored. "
+            "If exact_topk is False, Top-K is heuristic unless full enumeration is completed."
         ),
     }
 
@@ -367,7 +386,6 @@ def adaptive_time_limit(base_time: float, num_verts: int) -> float:
     elif num_verts <= 30_000:
         return min(base_time, 30.0)
     else:
-        # up to 60k (or whatever you allow)
         return min(base_time, 10.0)
 
 def process_instance(
@@ -382,6 +400,7 @@ def process_instance(
     prefer_large_first: bool,
     seed: Optional[int],
     max_verts: int,
+    store_all_mis: bool,
 ) -> Dict:
     verts = generate_vertices(H, G, signed, minimal_only)
     effective_time = adaptive_time_limit(time_limit_sec, len(verts))
@@ -396,6 +415,7 @@ def process_instance(
             "top_mis": [],
             "top_sizes": [],
             "enumerated": 0,
+            "stored_all_mis": store_all_mis,
             "is_exact_topk_among_all": False,
             "signed": signed,
             "minimal_only": minimal_only,
@@ -408,7 +428,9 @@ def process_instance(
             "num_vertices": 0,
             "num_edges": 0,
             "top_mis": [],
+            "top_sizes": [],
             "enumerated": 0,
+            "stored_all_mis": store_all_mis,
             "is_exact_topk_among_all": False,
         }
 
@@ -416,7 +438,8 @@ def process_instance(
     all_vids = [v.vid for v in verts]
 
     # edge count for reporting
-    m2 = sum(len(adj[v]) for v in adj)  # 2m
+    m2 = sum(len(adj[v]) for v in adj)
+
     res = collect_top_k_mis(
         adj,
         all_vids,
@@ -426,6 +449,7 @@ def process_instance(
         exact_topk=exact_topk,
         prefer_large_first=prefer_large_first,
         seed=seed,
+        store_all_mis=store_all_mis,
     )
 
     res.update({
@@ -443,6 +467,8 @@ def run_dataset(
     out_root: str,
     only_mode: Optional[str],
     only_pset: Optional[str],
+    only_file: Optional[str],
+    only_instance: int,
     max_files: int,
     minimal_only: bool,
     top_k: int,
@@ -452,12 +478,16 @@ def run_dataset(
     prefer_large_first: bool,
     seed: Optional[int],
     max_verts: int,
+    store_all_mis: bool,
 ):
     files = sorted(Path(root).rglob("*.txt"))
+
     if only_mode:
-        files = [f for f in files if only_mode in str(f)]
+        files = [f for f in files if infer_mode_from_path(f) == only_mode]
     if only_pset:
         files = [f for f in files if only_pset in str(f)]
+    if only_file:
+        files = [f for f in files if f.name == only_file]
 
     if max_files > 0:
         files = files[:max_files]
@@ -466,8 +496,8 @@ def run_dataset(
 
     for fp in files:
         try:
-            f_mode = "signed" if "signed" in str(fp) else "unsigned"
-            f_pset = fp.parent.name
+            f_mode = infer_mode_from_path(fp)
+            f_pset = fp.parent.name if fp.parent is not None else "unknown"
         except Exception:
             f_mode, f_pset = "unknown", "unknown"
 
@@ -498,6 +528,9 @@ def run_dataset(
         out_dir.mkdir(parents=True, exist_ok=True)
 
         for i, (H, G) in enumerate(instances):
+            if only_instance > 0 and (i + 1) != only_instance:
+                continue
+
             out_path = out_dir / f"inst{i+1}.json"
             if out_path.exists():
                 continue
@@ -517,8 +550,10 @@ def run_dataset(
                 prefer_large_first=prefer_large_first,
                 seed=seed,
                 max_verts=max_verts,
+                store_all_mis=store_all_mis,
             )
             res["instance_id"] = i + 1
+            res["source_file"] = str(fp)
 
             if "effective_time_limit_sec" in res:
                 print(
@@ -532,7 +567,10 @@ def run_dataset(
             if res.get("skipped"):
                 print(f"    SKIPPED: {res['reason']}")
             elif res["top_mis"]:
-                print(f"    Enumerated={res['enumerated']}, Top MIS size={len(res['top_mis'][0])}, K={top_k}")
+                if res.get("stored_all_mis", False):
+                    print(f"    Enumerated ALL MIS={res['enumerated']}, Largest MIS size={len(res['top_mis'][0])}")
+                else:
+                    print(f"    Enumerated={res['enumerated']}, Top MIS size={len(res['top_mis'][0])}, K={top_k}")
             else:
                 print(f"    Enumerated={res['enumerated']}, No MIS produced (maybe time/limit too small).")
 
@@ -544,28 +582,32 @@ if __name__ == "__main__":
 
     parser.add_argument("--only_mode", default=None)   # "signed" or "unsigned"
     parser.add_argument("--only_pset", default=None)
+    parser.add_argument("--only_file", default=None,
+                        help="Process only this exact filename")
+    parser.add_argument("--only_instance", type=int, default=0,
+                        help="Process only this 1-based instance id inside the file (0 = all)")
 
     parser.add_argument("--max_files", type=int, default=0)
 
     parser.add_argument("--minimal_only", action="store_true")
 
     parser.add_argument("--max_verts", type=int, default=60000,
-                    help="Skip an instance if generated vertices exceed this threshold")
+                        help="Skip an instance if generated vertices exceed this threshold")
 
-
-    # Top-K options
+    # Top-K / all-MIS options
     parser.add_argument("--top_k", type=int, default=30, help="How many maximal IS to keep")
     parser.add_argument("--max_enumerated", type=int, default=0,
                         help="Stop after enumerating this many MIS (0 = no limit)")
     parser.add_argument("--time_limit", type=float, default=0.0,
                         help="Stop after this many seconds (0 = no limit)")
-
     parser.add_argument("--exact_topk", action="store_true",
                         help="If set: keep true Top-K among enumerated MIS (exact only if no caps/time limit). "
                              "If not set: stop early after collecting K (fast heuristic).")
+    parser.add_argument("--store_all_mis", action="store_true",
+                        help="Store all maximal independent sets, sorted by size descending")
 
     parser.add_argument("--prefer_large_first", action="store_true",
-                        help="Heuristic ordering to output larger MIS earlier (recommended).")
+                        help="Heuristic ordering to output larger MIS earlier (recommended)")
 
     parser.add_argument("--seed", type=int, default=None)
 
@@ -576,6 +618,8 @@ if __name__ == "__main__":
         out_root=args.out_root,
         only_mode=args.only_mode,
         only_pset=args.only_pset,
+        only_file=args.only_file,
+        only_instance=args.only_instance,
         max_files=args.max_files,
         minimal_only=args.minimal_only,
         top_k=args.top_k,
@@ -585,4 +629,5 @@ if __name__ == "__main__":
         prefer_large_first=args.prefer_large_first,
         seed=args.seed,
         max_verts=args.max_verts,
+        store_all_mis=args.store_all_mis,
     )
