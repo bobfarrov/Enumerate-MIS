@@ -1,0 +1,165 @@
+Found 4 files to process.
+Processing: datasets/unsigned/n1000_m1_unsigned_tries10.txt
+  Instance 1 (|A|=1000 |B|=2579)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=2884
+    Enumerated=30, Top MIS size=552, K=30
+  Instance 2 (|A|=1000 |B|=2716)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=3088
+    Enumerated=30, Top MIS size=571, K=30
+  Instance 3 (|A|=1000 |B|=2589)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=2927
+    Enumerated=30, Top MIS size=538, K=30
+  Instance 4 (|A|=1000 |B|=2516)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=2784
+    Enumerated=30, Top MIS size=531, K=30
+  Instance 5 (|A|=1000 |B|=2525)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=2792
+    Enumerated=30, Top MIS size=573, K=30
+  Instance 6 (|A|=1000 |B|=2523)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=2885
+    Enumerated=30, Top MIS size=509, K=30
+  Instance 7 (|A|=1000 |B|=2578)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=2960
+    Enumerated=30, Top MIS size=520, K=30
+  Instance 8 (|A|=1000 |B|=2515)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=2890
+    Enumerated=30, Top MIS size=521, K=30
+  Instance 9 (|A|=1000 |B|=2599)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=2900
+    Enumerated=30, Top MIS size=540, K=30
+  Instance 10 (|A|=1000 |B|=2603)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=2903
+    Enumerated=30, Top MIS size=558, K=30
+Processing: datasets/unsigned/n3000_m1_unsigned_tries10.txt
+  Instance 1 (|A|=3000 |B|=8127)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=9298
+    Enumerated=30, Top MIS size=1677, K=30
+  Instance 2 (|A|=3000 |B|=8117)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=9274
+    Enumerated=30, Top MIS size=1674, K=30
+  Instance 3 (|A|=3000 |B|=7738)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=8798
+    Enumerated=30, Top MIS size=1599, K=30
+  Instance 4 (|A|=3000 |B|=8156)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=9451
+    Enumerated=30, Top MIS size=1659, K=30
+  Instance 5 (|A|=3000 |B|=7981)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=9158
+    Enumerated=30, Top MIS size=1672, K=30
+  Instance 6 (|A|=3000 |B|=7647)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=8556
+    Enumerated=30, Top MIS size=1689, K=30
+  Instance 7 (|A|=3000 |B|=7760)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=8782
+    Enumerated=30, Top MIS size=1662, K=30
+  Instance 8 (|A|=3000 |B|=7973)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=9008
+    Enumerated=30, Top MIS size=1646, K=30
+  Instance 9 (|A|=3000 |B|=7865)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=8928
+    Enumerated=30, Top MIS size=1653, K=30
+  Instance 10 (|A|=3000 |B|=8019)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=8972
+    Enumerated=30, Top MIS size=1736, K=30
+Processing: datasets/unsigned/n5000_m1_unsigned_tries10.txt
+  Instance 1 (|A|=5000 |B|=13079)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=120.0s, verts=14916
+    Enumerated=30, Top MIS size=2747, K=30
+  Instance 2 (|A|=5000 |B|=13379)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=120.0s, verts=15321
+    Enumerated=30, Top MIS size=2814, K=30
+  Instance 3 (|A|=5000 |B|=13359)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=120.0s, verts=15408
+    Enumerated=30, Top MIS size=2823, K=30
+  Instance 4 (|A|=5000 |B|=13121)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=120.0s, verts=14969
+    Enumerated=30, Top MIS size=2761, K=30
+  Instance 5 (|A|=5000 |B|=13458)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=120.0s, verts=15135
+    Enumerated=30, Top MIS size=2855, K=30
+  Instance 6 (|A|=5000 |B|=13190)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=120.0s, verts=15101
+    Enumerated=30, Top MIS size=2775, K=30
+  Instance 7 (|A|=5000 |B|=13064)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=120.0s, verts=15072
+    Enumerated=30, Top MIS size=2768, K=30
+  Instance 8 (|A|=5000 |B|=12839)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=120.0s, verts=14594
+    Enumerated=30, Top MIS size=2732, K=30
+  Instance 9 (|A|=5000 |B|=12976)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=120.0s, verts=14774
+    Enumerated=30, Top MIS size=2628, K=30
+  Instance 10 (|A|=5000 |B|=12935)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=120.0s, verts=14812
+    Enumerated=30, Top MIS size=2640, K=30
+Processing: datasets/unsigned/n500_m1_unsigned_tries10.txt
+  Instance 1 (|A|=500 |B|=1311)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=1457
+    Enumerated=30, Top MIS size=268, K=30
+  Instance 2 (|A|=500 |B|=1221)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=1296
+    Enumerated=30, Top MIS size=258, K=30
+  Instance 3 (|A|=500 |B|=1153)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=1255
+    Enumerated=30, Top MIS size=244, K=30
+  Instance 4 (|A|=500 |B|=1274)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=1465
+    Enumerated=30, Top MIS size=259, K=30
+  Instance 5 (|A|=500 |B|=1210)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=1307
+    Enumerated=30, Top MIS size=241, K=30
+  Instance 6 (|A|=500 |B|=1361)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=1523
+    Enumerated=30, Top MIS size=275, K=30
+  Instance 7 (|A|=500 |B|=1391)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=1640
+    Enumerated=30, Top MIS size=303, K=30
+  Instance 8 (|A|=500 |B|=1406)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=1613
+    Enumerated=30, Top MIS size=294, K=30
+  Instance 9 (|A|=500 |B|=1295)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=1431
+    Enumerated=30, Top MIS size=276, K=30
+  Instance 10 (|A|=500 |B|=1280)...
+    [INFO] base_time=120.0s (adaptive)
+    [INFO] effective_time=60.0s, verts=1417
+    Enumerated=30, Top MIS size=294, K=30

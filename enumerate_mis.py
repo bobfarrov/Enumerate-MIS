@@ -384,9 +384,9 @@ def adaptive_time_limit(base_time: float, num_verts: int) -> float:
     if num_verts <= 10_000:
         return min(base_time, 60.0)
     elif num_verts <= 30_000:
-        return min(base_time, 30.0)
+        return min(base_time, 120.0)
     else:
-        return min(base_time, 10.0)
+        return min(base_time, 60.0)
 
 def process_instance(
     H: List[int],
