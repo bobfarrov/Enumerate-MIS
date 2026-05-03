@@ -1,4 +1,4 @@
-Found 4 files to process.
+Found 5 files to process.
 Processing: datasets/signed/n1000_m1_signed_tries10.txt
   Instance 1: verts=2088, edges=324049, greedy_size=558
   Instance 2: verts=2019, edges=346213, greedy_size=516
@@ -43,3 +43,14 @@ Processing: datasets/signed/n500_m1_signed_tries10.txt
   Instance 8: verts=1030, edges=87677, greedy_size=259
   Instance 9: verts=912, edges=88844, greedy_size=233
   Instance 10: verts=1087, edges=97874, greedy_size=255
+Processing: datasets/signed/n7000_m1_signed_tries10.txt
+  Instance 1: verts=14818, edges=18336742, greedy_size=3821
+  Instance 2: verts=13760, edges=15291398, greedy_size=3699
+  Instance 3: verts=14407, edges=17320710, greedy_size=3742
+  Instance 4: verts=13886, edges=16053506, greedy_size=3677
+  Instance 5: verts=14259, edges=16154995, greedy_size=3790
+  Instance 6: verts=14117, edges=16340914, greedy_size=3644
+  Instance 7: verts=13933, edges=16518012, greedy_size=3698
+  Instance 8: verts=14236, edges=17215727, greedy_size=3753
+  Instance 9: verts=14104, edges=15475324, greedy_size=3761
+  Instance 10: verts=13971, edges=15501279, greedy_size=3694

@@ -1,6 +1,0 @@
-Found 1 files to process.
-Processing: datasets/signed/n5000_m1_signed_tries10.txt
-  Instance 5 (|A|=5000 |B|=13599)...
-    [INFO] base_time=120.0s (adaptive)
-    [INFO] effective_time=120.0s, verts=10560
-    Enumerated=30, Top MIS size=2764, K=30
