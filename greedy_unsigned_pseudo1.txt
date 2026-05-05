@@ -1,0 +1,57 @@
+Found 5 files to process.
+[INFO] pseudo_l=1, pseudo_use_abs=True
+Processing: datasets/unsigned/n1000_m1_unsigned_tries10.txt
+  Instance 1: verts=2884, edges=908523, greedy_size=308, pseudo_l=1, valid=True
+  Instance 2: verts=3088, edges=1031448, greedy_size=328, pseudo_l=1, valid=True
+  Instance 3: verts=2927, edges=995831, greedy_size=313, pseudo_l=1, valid=True
+  Instance 4: verts=2784, edges=886897, greedy_size=313, pseudo_l=1, valid=True
+  Instance 5: verts=2792, edges=849787, greedy_size=324, pseudo_l=1, valid=True
+  Instance 6: verts=2885, edges=930266, greedy_size=306, pseudo_l=1, valid=True
+  Instance 7: verts=2960, edges=923132, greedy_size=298, pseudo_l=1, valid=True
+  Instance 8: verts=2890, edges=958876, greedy_size=304, pseudo_l=1, valid=True
+  Instance 9: verts=2900, edges=931879, greedy_size=294, pseudo_l=1, valid=True
+  Instance 10: verts=2903, edges=888258, greedy_size=337, pseudo_l=1, valid=True
+Processing: datasets/unsigned/n3000_m1_unsigned_tries10.txt
+  Instance 1: verts=9298, edges=9295395, greedy_size=939, pseudo_l=1, valid=True
+  Instance 2: verts=9274, edges=9916886, greedy_size=965, pseudo_l=1, valid=True
+  Instance 3: verts=8798, edges=8668611, greedy_size=934, pseudo_l=1, valid=True
+  Instance 4: verts=9451, edges=9561934, greedy_size=950, pseudo_l=1, valid=True
+  Instance 5: verts=9158, edges=9324368, greedy_size=968, pseudo_l=1, valid=True
+  Instance 6: verts=8556, edges=7867882, greedy_size=954, pseudo_l=1, valid=True
+  Instance 7: verts=8782, edges=8253767, greedy_size=964, pseudo_l=1, valid=True
+  Instance 8: verts=9008, edges=8333044, greedy_size=945, pseudo_l=1, valid=True
+  Instance 9: verts=8928, edges=8558736, greedy_size=945, pseudo_l=1, valid=True
+  Instance 10: verts=8972, edges=8130370, greedy_size=991, pseudo_l=1, valid=True
+Processing: datasets/unsigned/n5000_m1_unsigned_tries10.txt
+  Instance 1: verts=14916, edges=23872403, greedy_size=1588, pseudo_l=1, valid=True
+  Instance 2: verts=15321, edges=25128705, greedy_size=1584, pseudo_l=1, valid=True
+  Instance 3: verts=15408, edges=25517469, greedy_size=1609, pseudo_l=1, valid=True
+  Instance 4: verts=14969, edges=23886241, greedy_size=1590, pseudo_l=1, valid=True
+  Instance 5: verts=15135, edges=24043001, greedy_size=1621, pseudo_l=1, valid=True
+  Instance 6: verts=15101, edges=24302881, greedy_size=1597, pseudo_l=1, valid=True
+  Instance 7: verts=15072, edges=24466336, greedy_size=1599, pseudo_l=1, valid=True
+  Instance 8: verts=14594, edges=23309635, greedy_size=1595, pseudo_l=1, valid=True
+  Instance 9: verts=14774, edges=25256063, greedy_size=1537, pseudo_l=1, valid=True
+  Instance 10: verts=14812, edges=23725573, greedy_size=1539, pseudo_l=1, valid=True
+Processing: datasets/unsigned/n500_m1_unsigned_tries10.txt
+  Instance 1: verts=1457, edges=267026, greedy_size=154, pseudo_l=1, valid=True
+  Instance 2: verts=1296, edges=184640, greedy_size=148, pseudo_l=1, valid=True
+  Instance 3: verts=1255, edges=199245, greedy_size=141, pseudo_l=1, valid=True
+  Instance 4: verts=1465, edges=246217, greedy_size=151, pseudo_l=1, valid=True
+  Instance 5: verts=1307, edges=191500, greedy_size=141, pseudo_l=1, valid=True
+  Instance 6: verts=1523, edges=270092, greedy_size=162, pseudo_l=1, valid=True
+  Instance 7: verts=1640, edges=305713, greedy_size=173, pseudo_l=1, valid=True
+  Instance 8: verts=1613, edges=324642, greedy_size=169, pseudo_l=1, valid=True
+  Instance 9: verts=1431, edges=195466, greedy_size=157, pseudo_l=1, valid=True
+  Instance 10: verts=1417, edges=210891, greedy_size=170, pseudo_l=1, valid=True
+Processing: datasets/unsigned/n7000_m1_unsigned_tries10.txt
+  Instance 1: verts=20865, edges=48656805, greedy_size=2203, pseudo_l=1, valid=True
+  Instance 2: verts=21048, edges=47569224, greedy_size=2182, pseudo_l=1, valid=True
+  Instance 3: verts=20860, edges=47742352, greedy_size=2227, pseudo_l=1, valid=True
+  Instance 4: verts=20340, edges=46444827, greedy_size=2198, pseudo_l=1, valid=True
+  Instance 5: verts=20893, edges=47432945, greedy_size=2226, pseudo_l=1, valid=True
+  Instance 6: verts=21153, edges=49059704, greedy_size=2175, pseudo_l=1, valid=True
+  Instance 7: verts=20971, edges=48167607, greedy_size=2189, pseudo_l=1, valid=True
+  Instance 8: verts=20981, edges=46747087, greedy_size=2226, pseudo_l=1, valid=True
+  Instance 9: verts=21223, edges=46176429, greedy_size=2216, pseudo_l=1, valid=True
+  Instance 10: verts=21672, edges=51421758, greedy_size=2233, pseudo_l=1, valid=True

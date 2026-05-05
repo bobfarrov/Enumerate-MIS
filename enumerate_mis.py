@@ -12,15 +12,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Set, Tuple, Optional, Iterable
 import sys
+
 sys.setrecursionlimit(1_000_000)
 
 # ------------------------------------------------------------------
-# 1. Genome Parsing (Robust)
+# 1. Genome Parsing
 # ------------------------------------------------------------------
 
 def parse_genome(s: str) -> List[int]:
     tokens = re.findall(r"[+-]?\d+", s)
     return [int(t) for t in tokens]
+
 
 # ------------------------------------------------------------------
 # 2. Graph & Logic Classes
@@ -34,9 +36,11 @@ class Vertex:
     R: int
     adj_key: Tuple[int, int]
 
+
 def canonical_signed_adj(a: int, b: int) -> Tuple[int, int]:
     x1, x2 = (a, b), (-b, -a)
     return x1 if x1 <= x2 else x2
+
 
 def infer_mode_from_path(fp: Path) -> str:
     s = str(fp)
@@ -47,13 +51,8 @@ def infer_mode_from_path(fp: Path) -> str:
         return "signed"
     return "unknown"
 
+
 def generate_vertices(A: List[int], B: List[int], signed: bool, minimal_only: bool) -> List[Vertex]:
-    """
-    NOTE: This keeps your original modeling:
-      - pos[] built from B
-      - colors are 'c' = adjacency index in A (c=0..|A|-2)
-      - vertices are intervals (L,R) over indices in B
-    """
     pos = defaultdict(list)
     for i, x in enumerate(B):
         k = x if signed else abs(x)
@@ -61,8 +60,10 @@ def generate_vertices(A: List[int], B: List[int], signed: bool, minimal_only: bo
 
     vertices: List[Vertex] = []
     vid = 0
+
     for c in range(len(A) - 1):
         a1, a2 = A[c], A[c + 1]
+
         if signed:
             adj_key = canonical_signed_adj(a1, a2)
             pairs = {(adj_key[0], adj_key[1]), (-adj_key[1], -adj_key[0])}
@@ -71,12 +72,15 @@ def generate_vertices(A: List[int], B: List[int], signed: bool, minimal_only: bo
             pairs = {(abs(a1), abs(a2)), (abs(a2), abs(a1))}
 
         candidates: List[Tuple[int, int]] = []
+
         for u, v in pairs:
             Pu, Pv = pos[u], pos[v]
+
             if minimal_only:
                 for i in Pu:
                     best_j = None
                     min_dist = float("inf")
+
                     for j in Pv:
                         if i == j:
                             continue
@@ -84,6 +88,7 @@ def generate_vertices(A: List[int], B: List[int], signed: bool, minimal_only: bo
                         if dist < min_dist:
                             min_dist = dist
                             best_j = j
+
                     if best_j is not None:
                         L, R = sorted((i, best_j))
                         candidates.append((L, R))
@@ -99,29 +104,40 @@ def generate_vertices(A: List[int], B: List[int], signed: bool, minimal_only: bo
             vertices.append(Vertex(vid, c, L, R, adj_key))
             vid += 1
 
-    # De-duplicate exact duplicates
+    # Deduplicate exact duplicates
     unique_v: Dict[Tuple[int, int, int, Tuple[int, int]], Vertex] = {}
     for v in vertices:
         unique_v[(v.color, v.L, v.R, v.adj_key)] = v
 
-    # Re-assign vids densely
-    out = [Vertex(i, v.color, v.L, v.R, v.adj_key)
-           for i, v in enumerate(sorted(unique_v.values(), key=lambda x: (x.color, x.L, x.R)))]
+    # Reassign vids densely
+    out = [
+        Vertex(i, v.color, v.L, v.R, v.adj_key)
+        for i, v in enumerate(sorted(unique_v.values(), key=lambda x: (x.color, x.L, x.R)))
+    ]
+
     return out
 
-def build_conflict_graph(vertices: List[Vertex]) -> Dict[int, Set[int]]:
+
+def build_conflict_graph(
+    vertices: List[Vertex],
+    A: Optional[List[int]] = None,
+    *,
+    pseudo_l: int = 0,
+    pseudo_use_abs: bool = True,
+) -> Dict[int, Set[int]]:
     """
     Conflict edges:
-      1) interval-overlap edges across different colors
-      2) within the same color: clique (at most one per color)
+      1) interval-overlap edges
+      2) same-color clique
+      3) pseudo-1 gene-family reuse edges, if pseudo_l == 1
 
-    Overlap rule used here treats touching endpoints as NON-overlapping (since we pop old with R <= L).
-    If you want endpoints to conflict, change `<=` to `<`.
+    Touching endpoints are NON-overlapping.
     """
     adj: Dict[int, Set[int]] = {v.vid: set() for v in vertices}
-    sorted_v = sorted(vertices, key=lambda v: (v.L, v.R))
 
-    active: List[Tuple[int, int]] = []  # (R, vid)
+    # 1. Interval overlap conflicts
+    sorted_v = sorted(vertices, key=lambda v: (v.L, v.R))
+    active: List[Tuple[int, int]] = []
     active_set: Set[int] = set()
 
     for v in sorted_v:
@@ -136,11 +152,12 @@ def build_conflict_graph(vertices: List[Vertex]) -> Dict[int, Set[int]]:
         heapq.heappush(active, (v.R, v.vid))
         active_set.add(v.vid)
 
+    # 2. Same-color clique
     by_color = defaultdict(list)
     for v in vertices:
         by_color[v.color].append(v.vid)
+
     for group in by_color.values():
-        # clique inside each color
         for i in range(len(group)):
             u = group[i]
             for j in range(i + 1, len(group)):
@@ -148,10 +165,68 @@ def build_conflict_graph(vertices: List[Vertex]) -> Dict[int, Set[int]]:
                 adj[u].add(w)
                 adj[w].add(u)
 
+    # 3. pseudo-1 constraint: same gene family cannot be used twice
+    if pseudo_l == 1 and A is not None:
+        buckets = defaultdict(list)
+
+        for v in vertices:
+            a1, a2 = A[v.color], A[v.color + 1]
+            g1 = abs(a1) if pseudo_use_abs else a1
+            g2 = abs(a2) if pseudo_use_abs else a2
+
+            buckets[g1].append(v.vid)
+            buckets[g2].append(v.vid)
+
+        for vids in buckets.values():
+            for i in range(len(vids)):
+                u = vids[i]
+                for j in range(i + 1, len(vids)):
+                    w = vids[j]
+                    if u != w:
+                        adj[u].add(w)
+                        adj[w].add(u)
+
     return adj
 
+
+def is_pseudo_l_on_adjacencies(
+    A: List[int],
+    chosen_vertices: List[Vertex],
+    ell: int,
+    *,
+    use_abs: bool = True,
+) -> bool:
+    """
+    Count how many selected adjacencies touch each gene family.
+    Require count <= ell.
+
+    pseudo_l=1 means each gene family participates in at most one selected adjacency.
+    pseudo_l=2 means each gene family participates in at most two selected adjacencies.
+    """
+    if ell <= 0:
+        return True
+
+    counts: Dict[int, int] = {}
+
+    for v in chosen_vertices:
+        a1, a2 = A[v.color], A[v.color + 1]
+
+        g1 = abs(a1) if use_abs else a1
+        g2 = abs(a2) if use_abs else a2
+
+        counts[g1] = counts.get(g1, 0) + 1
+        if counts[g1] > ell:
+            return False
+
+        counts[g2] = counts.get(g2, 0) + 1
+        if counts[g2] > ell:
+            return False
+
+    return True
+
+
 # ------------------------------------------------------------------
-# 3. Exact MIS Enumeration via Maximal Cliques in Complement (Bitset BK)
+# 3. MIS Enumeration via Maximal Cliques in Complement
 # ------------------------------------------------------------------
 
 def enumerate_maximal_independent_sets_bitset(
@@ -159,31 +234,18 @@ def enumerate_maximal_independent_sets_bitset(
     all_vids: List[int],
     *,
     time_limit_sec: float = 0.0,
-    prefer_large_first: bool = True
+    prefer_large_first: bool = True,
 ) -> Iterable[Set[int]]:
-    """
-    Enumerate ALL maximal independent sets exactly.
-    Implementation: enumerate maximal cliques in complement graph via Bron–Kerbosch with pivot,
-    using Python int bitsets.
-
-    time_limit_sec:
-      - 0 => no limit
-      - >0 => stop yielding after time limit (still exact for those yielded, but incomplete overall)
-
-    prefer_large_first:
-      - True => heuristic ordering to tend to produce larger MIS earlier (NOT a guarantee).
-    """
     start = time.time()
-
     n = len(all_vids)
+
     if n == 0:
         return
-        yield  # for type checkers
+        yield
 
     idx_of = {vid: i for i, vid in enumerate(all_vids)}
     vid_of = {i: vid for i, vid in enumerate(all_vids)}
 
-    # adjacency bitmasks in original graph
     adj_mask = [0] * n
     for vid in all_vids:
         i = idx_of[vid]
@@ -196,7 +258,6 @@ def enumerate_maximal_independent_sets_bitset(
 
     all_mask = (1 << n) - 1
 
-    # complement neighbors (exclude self)
     comp_mask = [0] * n
     for i in range(n):
         comp_mask[i] = all_mask & ~(adj_mask[i] | (1 << i))
@@ -217,7 +278,6 @@ def enumerate_maximal_independent_sets_bitset(
         return (time.time() - start) <= time_limit_sec
 
     def bronk(R: int, P: int, X: int, depth: int = 0):
-        # Safety guard against runaway recursion
         if depth > 20000:
             return
 
@@ -228,11 +288,11 @@ def enumerate_maximal_independent_sets_bitset(
             yield {vid_of[i] for i in bits_iter(R)}
             return
 
-        # Choose pivot u from P|X maximizing |P ∩ N(u)|
         PX = P | X
         u = None
         max_deg = -1
         tmp = PX
+
         while tmp:
             lsb = tmp & -tmp
             ui = lsb.bit_length() - 1
@@ -242,10 +302,9 @@ def enumerate_maximal_independent_sets_bitset(
                 u = ui
             tmp ^= lsb
 
-        # Candidates: P \ N(u)
         candidates = P & ~comp_mask[u] if u is not None else P
-
         cand_list = list(bits_iter(candidates))
+
         if prefer_large_first and 1 < len(cand_list) <= 2000:
             cand_list.sort(key=lambda v: popcount(P & comp_mask[v]), reverse=True)
 
@@ -254,13 +313,15 @@ def enumerate_maximal_independent_sets_bitset(
             yield from bronk(R | (1 << v), P & Nv, X & Nv, depth + 1)
             P &= ~(1 << v)
             X |= (1 << v)
+
             if not time_ok():
                 return
 
     yield from bronk(0, all_mask, 0, 0)
 
+
 # ------------------------------------------------------------------
-# 4. Collector for maximal IS
+# 4. Collector for Top-K MIS
 # ------------------------------------------------------------------
 
 def collect_top_k_mis(
@@ -274,40 +335,81 @@ def collect_top_k_mis(
     prefer_large_first: bool = True,
     seed: Optional[int] = None,
     store_all_mis: bool = False,
+    H: Optional[List[int]] = None,
+    verts: Optional[List[Vertex]] = None,
+    pseudo_l: int = 0,
+    pseudo_use_abs: bool = True,
+    progress_every: int = 0,
+    stop_if_no_accept_after: int = 0,
 ) -> Dict:
-    """
-    If store_all_mis=False:
-        keep only Top-K as before.
-
-    If store_all_mis=True:
-        enumerate all MIS, store all of them, sort by size descending.
-    """
     if seed is not None:
         random.seed(seed)
 
     enumerated = 0
+    accepted = 0
+    rejects = 0
     start = time.time()
+
+    vmap: Optional[Dict[int, Vertex]] = None
+    if pseudo_l > 0:
+        if H is None or verts is None:
+            raise ValueError("pseudo_l > 0 requires H and verts")
+        vmap = {v.vid: v for v in verts}
 
     def time_ok() -> bool:
         if time_limit_sec <= 0:
             return True
         return (time.time() - start) <= time_limit_sec
 
+    def passes_pseudo(t: Tuple[int, ...]) -> bool:
+        if pseudo_l <= 0:
+            return True
+
+        assert vmap is not None
+        assert H is not None
+
+        chosen = [vmap[vid] for vid in t if vid in vmap]
+        return is_pseudo_l_on_adjacencies(
+            H,
+            chosen,
+            pseudo_l,
+            use_abs=pseudo_use_abs,
+        )
+
     if store_all_mis:
         all_mis: List[Tuple[int, ...]] = []
         seen: Set[Tuple[int, ...]] = set()
 
         for mis in enumerate_maximal_independent_sets_bitset(
-            adj, all_vids, time_limit_sec=time_limit_sec, prefer_large_first=prefer_large_first
+            adj,
+            all_vids,
+            time_limit_sec=time_limit_sec,
+            prefer_large_first=prefer_large_first,
         ):
             enumerated += 1
             t = tuple(sorted(mis))
+
+            if progress_every > 0 and enumerated % progress_every == 0:
+                print(
+                    f"      [PROGRESS] enumerated={enumerated}, accepted={accepted}, rejects={rejects}",
+                    file=sys.stderr,
+                )
+
+            if stop_if_no_accept_after > 0 and accepted == 0 and enumerated >= stop_if_no_accept_after:
+                break
+
+            if not passes_pseudo(t):
+                rejects += 1
+                if max_enumerated > 0 and enumerated >= max_enumerated:
+                    break
+                if not time_ok():
+                    break
+                continue
+
             if t not in seen:
                 seen.add(t)
                 all_mis.append(t)
-            
-            if enumerated % 100 == 0:
-                print(f"      [PROGRESS] enumerated={enumerated}, stored={len(all_mis)}")
+                accepted += 1
 
             if max_enumerated > 0 and enumerated >= max_enumerated:
                 break
@@ -320,25 +422,61 @@ def collect_top_k_mis(
             "top_mis": [list(x) for x in all_mis],
             "top_sizes": [len(x) for x in all_mis],
             "enumerated": enumerated,
+            "accepted_after_pseudo_l": accepted,
+            "rejects_by_pseudo_l": rejects,
+            "accept_rate_over_enumerated": accepted / enumerated if enumerated else 0.0,
             "stored_all_mis": True,
-            "is_complete_enumeration": (time_limit_sec <= 0.0 and max_enumerated == 0),
-            "note": "All maximal independent sets stored and sorted by size descending."
+            "is_complete_enumeration": time_limit_sec <= 0.0 and max_enumerated == 0,
+            "pseudo_l": pseudo_l,
+            "pseudo_use_abs": pseudo_use_abs,
+            "note": "All accepted maximal independent sets stored and sorted by size descending.",
         }
 
     if top_k <= 0:
-        return {"top_mis": [], "enumerated": 0, "is_exact": False}
+        return {
+            "top_mis": [],
+            "top_sizes": [],
+            "enumerated": 0,
+            "accepted_after_pseudo_l": 0,
+            "rejects_by_pseudo_l": 0,
+            "pseudo_l": pseudo_l,
+            "pseudo_use_abs": pseudo_use_abs,
+        }
 
     heap: List[Tuple[int, Tuple[int, ...]]] = []
     seen: Set[Tuple[int, ...]] = set()
 
     for mis in enumerate_maximal_independent_sets_bitset(
-        adj, all_vids, time_limit_sec=time_limit_sec, prefer_large_first=prefer_large_first
+        adj,
+        all_vids,
+        time_limit_sec=time_limit_sec,
+        prefer_large_first=prefer_large_first,
     ):
         enumerated += 1
         t = tuple(sorted(mis))
+
+        if progress_every > 0 and enumerated % progress_every == 0:
+            print(
+                f"      [PROGRESS] enumerated={enumerated}, accepted={accepted}, rejects={rejects}, heap={len(heap)}/{top_k}",
+                file=sys.stderr,
+            )
+
+        if stop_if_no_accept_after > 0 and accepted == 0 and enumerated >= stop_if_no_accept_after:
+            break
+
+        if not passes_pseudo(t):
+            rejects += 1
+            if max_enumerated > 0 and enumerated >= max_enumerated:
+                break
+            if not time_ok():
+                break
+            continue
+
         if t not in seen:
             seen.add(t)
+            accepted += 1
             s = len(t)
+
             if len(heap) < top_k:
                 heapq.heappush(heap, (s, t))
             else:
@@ -355,31 +493,34 @@ def collect_top_k_mis(
     heap.sort(key=lambda x: x[0], reverse=True)
     top_mis = [list(t) for _, t in heap]
 
-    is_exact = exact_topk and (max_enumerated == 0) and (time_limit_sec <= 0.0)
+    is_exact = exact_topk and max_enumerated == 0 and time_limit_sec <= 0.0
+
     return {
         "top_mis": top_mis,
         "top_sizes": [len(x) for x in top_mis],
         "enumerated": enumerated,
+        "accepted_after_pseudo_l": accepted,
+        "rejects_by_pseudo_l": rejects,
+        "accept_rate_over_enumerated": accepted / enumerated if enumerated else 0.0,
         "stored_all_mis": False,
         "is_exact_topk_among_all": bool(is_exact),
+        "pseudo_l": pseudo_l,
+        "pseudo_use_abs": pseudo_use_abs,
         "note": (
-            "If store_all_mis is False, only Top-K are stored. "
-            "If exact_topk is False, Top-K is heuristic unless full enumeration is completed."
+            "pseudo_l=0 means no pseudo constraint. "
+            "pseudo_l=1 is encoded in the graph and also checked. "
+            "pseudo_l=2 is checked as an enumeration filter."
         ),
     }
+
 
 # ------------------------------------------------------------------
 # 5. Main Runner
 # ------------------------------------------------------------------
 
 def adaptive_time_limit(base_time: float, num_verts: int) -> float:
-    """
-    Returns an effective per-instance time budget based on num_verts.
-    - If base_time <= 0: no time limit (0 means unlimited in your code)
-    - Otherwise: cap by tiers.
-    """
     if base_time <= 0:
-        return 0.0  # unlimited
+        return 0.0
 
     if num_verts <= 10_000:
         return min(base_time, 120.0)
@@ -387,6 +528,7 @@ def adaptive_time_limit(base_time: float, num_verts: int) -> float:
         return min(base_time, 180.0)
     else:
         return min(base_time, 120.0)
+
 
 def process_instance(
     H: List[int],
@@ -401,6 +543,10 @@ def process_instance(
     seed: Optional[int],
     max_verts: int,
     store_all_mis: bool,
+    pseudo_l: int,
+    pseudo_use_abs: bool,
+    progress_every: int,
+    stop_if_no_accept_after: int,
 ) -> Dict:
     verts = generate_vertices(H, G, signed, minimal_only)
     effective_time = adaptive_time_limit(time_limit_sec, len(verts))
@@ -415,10 +561,15 @@ def process_instance(
             "top_mis": [],
             "top_sizes": [],
             "enumerated": 0,
+            "accepted_after_pseudo_l": 0,
+            "rejects_by_pseudo_l": 0,
+            "accept_rate_over_enumerated": 0.0,
             "stored_all_mis": store_all_mis,
             "is_exact_topk_among_all": False,
             "signed": signed,
             "minimal_only": minimal_only,
+            "pseudo_l": pseudo_l,
+            "pseudo_use_abs": pseudo_use_abs,
         }
 
     if not verts:
@@ -430,14 +581,25 @@ def process_instance(
             "top_mis": [],
             "top_sizes": [],
             "enumerated": 0,
+            "accepted_after_pseudo_l": 0,
+            "rejects_by_pseudo_l": 0,
+            "accept_rate_over_enumerated": 0.0,
             "stored_all_mis": store_all_mis,
             "is_exact_topk_among_all": False,
+            "signed": signed,
+            "minimal_only": minimal_only,
+            "pseudo_l": pseudo_l,
+            "pseudo_use_abs": pseudo_use_abs,
         }
 
-    adj = build_conflict_graph(verts)
-    all_vids = [v.vid for v in verts]
+    adj = build_conflict_graph(
+        verts,
+        H,
+        pseudo_l=pseudo_l,
+        pseudo_use_abs=pseudo_use_abs,
+    )
 
-    # edge count for reporting
+    all_vids = [v.vid for v in verts]
     m2 = sum(len(adj[v]) for v in adj)
 
     res = collect_top_k_mis(
@@ -450,6 +612,12 @@ def process_instance(
         prefer_large_first=prefer_large_first,
         seed=seed,
         store_all_mis=store_all_mis,
+        H=H,
+        verts=verts,
+        pseudo_l=pseudo_l,
+        pseudo_use_abs=pseudo_use_abs,
+        progress_every=progress_every,
+        stop_if_no_accept_after=stop_if_no_accept_after,
     )
 
     res.update({
@@ -459,8 +627,12 @@ def process_instance(
         "signed": signed,
         "minimal_only": minimal_only,
         "effective_time_limit_sec": effective_time,
+        "pseudo_l": pseudo_l,
+        "pseudo_use_abs": pseudo_use_abs,
     })
+
     return res
+
 
 def run_dataset(
     root: str,
@@ -479,6 +651,10 @@ def run_dataset(
     seed: Optional[int],
     max_verts: int,
     store_all_mis: bool,
+    pseudo_l: int,
+    pseudo_use_abs: bool,
+    progress_every: int,
+    stop_if_no_accept_after: int,
 ):
     files = sorted(Path(root).rglob("*.txt"))
 
@@ -488,18 +664,15 @@ def run_dataset(
         files = [f for f in files if only_pset in str(f)]
     if only_file:
         files = [f for f in files if f.name == only_file]
-
     if max_files > 0:
         files = files[:max_files]
 
     print(f"Found {len(files)} files to process.")
+    print(f"[INFO] pseudo_l={pseudo_l}, pseudo_use_abs={pseudo_use_abs}")
 
     for fp in files:
-        try:
-            f_mode = infer_mode_from_path(fp)
-            f_pset = fp.parent.name if fp.parent is not None else "unknown"
-        except Exception:
-            f_mode, f_pset = "unknown", "unknown"
+        f_mode = infer_mode_from_path(fp)
+        f_pset = fp.parent.name if fp.parent is not None else "unknown"
 
         print(f"Processing: {fp}")
         instances: List[Tuple[List[int], List[int]]] = []
@@ -510,6 +683,7 @@ def run_dataset(
                 line = line.strip()
                 if not line:
                     continue
+
                 if line.upper().startswith("H:"):
                     H_curr = parse_genome(line)
                 elif line.upper().startswith("G:"):
@@ -531,16 +705,18 @@ def run_dataset(
             if only_instance > 0 and (i + 1) != only_instance:
                 continue
 
-            out_path = out_dir / f"inst{i+1}.json"
+            out_path = out_dir / f"inst{i + 1}.json"
             if out_path.exists():
                 continue
 
-            print(f"  Instance {i+1} (|A|={len(H)} |B|={len(G)})...")
+            print(f"  Instance {i + 1} (|A|={len(H)} |B|={len(G)})...")
             print(f"    [INFO] base_time={time_limit_sec}s (adaptive)")
 
-            signed_flag = (f_mode == "signed")
+            signed_flag = f_mode == "signed"
+
             res = process_instance(
-                H, G,
+                H,
+                G,
                 signed=signed_flag,
                 minimal_only=minimal_only,
                 top_k=top_k,
@@ -551,7 +727,12 @@ def run_dataset(
                 seed=seed,
                 max_verts=max_verts,
                 store_all_mis=store_all_mis,
+                pseudo_l=pseudo_l,
+                pseudo_use_abs=pseudo_use_abs,
+                progress_every=progress_every,
+                stop_if_no_accept_after=stop_if_no_accept_after,
             )
+
             res["instance_id"] = i + 1
             res["source_file"] = str(fp)
 
@@ -566,13 +747,20 @@ def run_dataset(
 
             if res.get("skipped"):
                 print(f"    SKIPPED: {res['reason']}")
-            elif res["top_mis"]:
-                if res.get("stored_all_mis", False):
-                    print(f"    Enumerated ALL MIS={res['enumerated']}, Largest MIS size={len(res['top_mis'][0])}")
-                else:
-                    print(f"    Enumerated={res['enumerated']}, Top MIS size={len(res['top_mis'][0])}, K={top_k}")
+            elif res.get("top_mis"):
+                print(
+                    f"    Enumerated={res['enumerated']}, "
+                    f"Accepted={res.get('accepted_after_pseudo_l', 0)}, "
+                    f"Rejects={res.get('rejects_by_pseudo_l', 0)}, "
+                    f"Top MIS size={len(res['top_mis'][0])}, K={top_k}"
+                )
             else:
-                print(f"    Enumerated={res['enumerated']}, No MIS produced (maybe time/limit too small).")
+                print(
+                    f"    Enumerated={res.get('enumerated', 0)}, "
+                    f"Accepted={res.get('accepted_after_pseudo_l', 0)}, "
+                    f"No MIS produced."
+                )
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -580,36 +768,32 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_root", default="qingge_datasets")
     parser.add_argument("--out_root", default="mis_outputs_exact_topk")
 
-    parser.add_argument("--only_mode", default=None)   # "signed" or "unsigned"
+    parser.add_argument("--only_mode", default=None)
     parser.add_argument("--only_pset", default=None)
-    parser.add_argument("--only_file", default=None,
-                        help="Process only this exact filename")
-    parser.add_argument("--only_instance", type=int, default=0,
-                        help="Process only this 1-based instance id inside the file (0 = all)")
+    parser.add_argument("--only_file", default=None)
+    parser.add_argument("--only_instance", type=int, default=0)
 
     parser.add_argument("--max_files", type=int, default=0)
-
     parser.add_argument("--minimal_only", action="store_true")
 
-    parser.add_argument("--max_verts", type=int, default=60000,
-                        help="Skip an instance if generated vertices exceed this threshold")
+    parser.add_argument("--max_verts", type=int, default=60000)
 
-    # Top-K / all-MIS options
-    parser.add_argument("--top_k", type=int, default=30, help="How many maximal IS to keep")
-    parser.add_argument("--max_enumerated", type=int, default=0,
-                        help="Stop after enumerating this many MIS (0 = no limit)")
-    parser.add_argument("--time_limit", type=float, default=0.0,
-                        help="Stop after this many seconds (0 = no limit)")
-    parser.add_argument("--exact_topk", action="store_true",
-                        help="If set: keep true Top-K among enumerated MIS (exact only if no caps/time limit). "
-                             "If not set: stop early after collecting K (fast heuristic).")
-    parser.add_argument("--store_all_mis", action="store_true",
-                        help="Store all maximal independent sets, sorted by size descending")
-
-    parser.add_argument("--prefer_large_first", action="store_true",
-                        help="Heuristic ordering to output larger MIS earlier (recommended)")
-
+    parser.add_argument("--top_k", type=int, default=30)
+    parser.add_argument("--max_enumerated", type=int, default=0)
+    parser.add_argument("--time_limit", type=float, default=0.0)
+    parser.add_argument("--exact_topk", action="store_true")
+    parser.add_argument("--store_all_mis", action="store_true")
+    parser.add_argument("--prefer_large_first", action="store_true")
     parser.add_argument("--seed", type=int, default=None)
+
+    parser.add_argument("--pseudo_l", type=int, default=0,
+                        help="0=off, 1=pseudo-1, 2=pseudo-2")
+
+    parser.add_argument("--pseudo_use_abs", action="store_true",
+                        help="Use absolute gene family IDs for pseudo-l counting")
+
+    parser.add_argument("--progress_every", type=int, default=0)
+    parser.add_argument("--stop_if_no_accept_after", type=int, default=0)
 
     args = parser.parse_args()
 
@@ -630,4 +814,8 @@ if __name__ == "__main__":
         seed=args.seed,
         max_verts=args.max_verts,
         store_all_mis=args.store_all_mis,
+        pseudo_l=args.pseudo_l,
+        pseudo_use_abs=args.pseudo_use_abs,
+        progress_every=args.progress_every,
+        stop_if_no_accept_after=args.stop_if_no_accept_after,
     )
