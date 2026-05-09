@@ -24,7 +24,7 @@ The project studies heuristic Top-K maximal independent set (MIS) enumeration fo
 
 ```text
 enumerate_mis.py              # Heuristic Top-K MIS enumeration
-qingge_greedy_pseudo.py     # Greedy MIS-CIG baseline
+qingge_greedy_pseudo.py       # Greedy MIS-CIG baseline
 decode_mis.py                 # Decode MIS solutions into folded exemplars
 make_pseudo_comparison_csv.py # Generate comparison CSV tables
 
